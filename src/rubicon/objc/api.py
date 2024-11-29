@@ -1620,10 +1620,6 @@ class ObjCClass(ObjCInstance, type):
         if self.methods_ptr is not None:
             raise RuntimeError(f"{self}._load_methods cannot be called more than once")
 
-        methods_ptr_count = c_uint(0)
-
-        methods_ptr = libobjc.class_copyMethodList(self, byref(methods_ptr_count))
-
         if self.superclass is not None:
             if self.superclass.methods_ptr is None:
                 with self.superclass.cache_lock:
@@ -1634,6 +1630,10 @@ class ObjCClass(ObjCInstance, type):
                 partial = ObjCPartialMethod(first)
                 self.partial_methods[first] = partial
                 partial.methods.update(superpartial.methods)
+
+        # Load methods for this class.
+        methods_ptr_count = c_uint(0)
+        methods_ptr = libobjc.class_copyMethodList(self, byref(methods_ptr_count))
 
         for i in range(methods_ptr_count.value):
             method = methods_ptr[i]
