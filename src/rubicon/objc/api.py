@@ -1466,36 +1466,30 @@ class ObjCClass(ObjCInstance, type):
         by looking it up in the cached list of methods or by searching for and
         creating a new method object."""
         with self.cache_lock:
+            # Load the class's methods if we haven't done so yet.
+            if self.methods_ptr is None:
+                self._load_methods()
+
+            # Try to return an existing cached method for the name
             try:
-                # Try to return an existing cached method for the name
                 return self.instance_methods[name]
             except KeyError:
-                supercls = self
-                objc_method = None
-                while supercls is not None:
-                    # Load the class's methods if we haven't done so yet.
-                    if supercls.methods_ptr is None:
-                        supercls._load_methods()
+                pass
 
-                    try:
-                        objc_method = supercls.instance_methods[name]
-                        break
-                    except KeyError:
-                        pass
+            # Try to find method pointer and create a cached method.
+            try:
+                method_ptr = self.instance_method_ptrs[name]
+                objc_method = ObjCMethod(method_ptr)
+                self.instance_methods[name] = objc_method
+                return objc_method
+            except KeyError:
+                pass
 
-                    try:
-                        objc_method = ObjCMethod(supercls.instance_method_ptrs[name])
-                        break
-                    except KeyError:
-                        pass
+            # Traverse and repeat for superclasses.
+            if self.superclass:
+                return self.superclass._cache_method(name)
 
-                    supercls = supercls.superclass
-
-                if objc_method is None:
-                    return None
-                else:
-                    self.instance_methods[name] = objc_method
-                    return objc_method
+            return None
 
     def _cache_property_methods(self, name):
         """Return the accessor and mutator for the named property."""
