@@ -1422,16 +1422,21 @@ class ObjCClass(ObjCInstance, type):
 
         new_attrs = {
             "name": objc_class_name,
+            # Pointer to the list of methods for this class.
             "methods_ptr": None,
-            # Mapping of name -> method pointer
+            # Mapping of name -> method pointer for this class. Populated for all
+            # methods of this class, excluding superclasses, on first method call.
             "instance_method_ptrs": {},
-            # Mapping of name -> instance method
+            # Mapping of name -> instance method. Populated for each method on the the
+            # first call.
             "instance_methods": {},
-            # Mapping of name -> (accessor method, mutator method)
+            # Mapping of name -> (accessor method, mutator method). Populated for each
+            # property on first access.
             "instance_properties": {},
             # Explicitly declared properties
             "forced_properties": set(),
-            # Mapping of first keyword -> ObjCPartialMethod instances
+            # Mapping of first keyword -> ObjCPartialMethod instances. Populated with
+            # all methods of this class and its superclasses on first method call.
             "partial_methods": {},
             # A re-entrant thread lock moderating access to the ObjCClass
             # method/property cache. This ensures that only one thread populates
