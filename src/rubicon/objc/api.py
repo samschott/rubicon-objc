@@ -1427,7 +1427,7 @@ class ObjCClass(ObjCInstance, type):
             # Mapping of name -> method pointer for this class. Populated for all
             # methods of this class, excluding superclasses, on first method call.
             "instance_method_ptrs": {},
-            # Mapping of name -> instance method. Populated for each method on the the
+            # Mapping of name -> instance method. Populated for each method on the
             # first call.
             "instance_methods": {},
             # Mapping of name -> (accessor method, mutator method). Populated for each
@@ -1655,12 +1655,12 @@ class ObjCClass(ObjCInstance, type):
         if self.methods_ptr is not None:
             raise RuntimeError(f"{self}._load_methods cannot be called more than once")
 
-        # Traverse the superclass hierarchy and load methods.
-        superclass = self.superclass
-        while superclass is not None:
-            if superclass.methods_ptr is None:
-                with superclass.cache_lock:
-                    superclass._load_methods()
+        # Traverse the superclass hierarchy and load methods. Perform the traversal
+        # top-down and add the parent's method to the child.
+        if self.superclass:
+            with self.superclass.cache_lock:
+                if self.superclass.methods_ptr is None:
+                    self.superclass._load_methods()
 
             # Prime this class' partials list with a list from the superclass.
             for first, superpartial in self.superclass.partial_methods.items():
@@ -1668,7 +1668,8 @@ class ObjCClass(ObjCInstance, type):
                 self.partial_methods[first] = partial
                 partial.methods.update(superpartial.methods)
 
-            superclass = superclass.superclass
+            # Add the superclass methods to this class.
+            self.instance_method_ptrs.update(self.superclass.self.instance_method_ptrs)
 
         # Load methods for this class.
         methods_ptr_count = c_uint(0)
