@@ -117,6 +117,18 @@ def method_name_to_tuple(name: str) -> (str, tuple[str, ...]):
     return first, rest
 
 
+def add_partial_method(cache: dict[str, "ObjCPartialMethod"], method_name: str) -> None:
+    base_name, argument_names = method_name_to_tuple(method_name)
+
+    try:
+        partial = cache[base_name]
+    except KeyError:
+        partial = ObjCPartialMethod(base_name)
+        cache[base_name] = partial
+
+    partial.methods[argument_names] = method_name
+
+
 def encoding_from_annotation(f, offset=1):
     argspec = inspect.getfullargspec(inspect.unwrap(f))
     hints = typing.get_type_hints(f)
@@ -1489,10 +1501,6 @@ class ObjCClass(ObjCInstance, type):
             except KeyError:
                 pass
 
-            # Traverse and repeat for superclasses.
-            if self.superclass:
-                return self.superclass._cache_method(name)
-
             return None
 
     def _cache_property_methods(self, name):
@@ -1661,14 +1669,12 @@ class ObjCClass(ObjCInstance, type):
                 if self.superclass.methods_ptr is None:
                     self.superclass._load_methods()
 
-            # Prime this class' partials list with a list from the superclass.
-            for first, superpartial in self.superclass.partial_methods.items():
-                partial = ObjCPartialMethod(first)
-                self.partial_methods[first] = partial
-                partial.methods.update(superpartial.methods)
+            # Add superclass partial methods to this class.
+            for name in self.superclass.instance_method_ptrs:
+                add_partial_method(self.partial_methods, name)
 
             # Add the superclass methods to this class.
-            self.instance_method_ptrs.update(self.superclass.self.instance_method_ptrs)
+            self.instance_method_ptrs.update(self.superclass.instance_method_ptrs)
 
         # Load methods for this class.
         methods_ptr_count = c_uint(0)
@@ -1677,17 +1683,9 @@ class ObjCClass(ObjCInstance, type):
         for i in range(methods_ptr_count.value):
             method = methods_ptr[i]
             name = libobjc.method_getName(method).name.decode("utf-8")
+
             self.instance_method_ptrs[name] = method
-
-            base_name, argument_names = method_name_to_tuple(name)
-
-            try:
-                partial = self.partial_methods[base_name]
-            except KeyError:
-                partial = ObjCPartialMethod(base_name)
-                self.partial_methods[base_name] = partial
-
-            partial.methods[argument_names] = name
+            add_partial_method(self.partial_methods, name)
 
         # Set the list of methods for the class to the computed list.
         self.methods_ptr = methods_ptr
