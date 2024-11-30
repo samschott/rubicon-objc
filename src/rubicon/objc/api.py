@@ -1437,17 +1437,17 @@ class ObjCClass(ObjCInstance, type):
             # Pointer to the list of methods for this class.
             "methods_ptr": None,
             # Mapping of name -> method pointer for this class and its superclasses.
-            # Populated for all on first method call.
+            # Populated with all methods on alloc.
             "instance_method_ptrs": {},
             # Mapping of name -> instance method for this class and its superclasses.
-            # Populated for each method on the first call.
+            # Populated with each method on its first call.
             "instance_methods": {},
             # Mapping of name -> (accessor method, mutator method).
             "instance_properties": {},
             # Explicitly declared properties
             "forced_properties": set(),
             # Mapping of first keyword -> ObjCPartialMethod instances for this class and
-            # its superclasses. Populated for all on first method call.
+            # its superclasses. Populated with all methods on alloc.
             "partial_methods": {},
             # A re-entrant thread lock moderating access to the ObjCClass
             # method/property cache. This ensures that only one thread populates
