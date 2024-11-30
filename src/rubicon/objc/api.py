@@ -1099,13 +1099,12 @@ class ObjCInstance:
             if method:
                 return ObjCBoundMethod(method, self)()
 
-        # See if there's a partial method starting with the given name,
-        # either on self's class or any of the superclasses.
         # Load the class's methods first if we haven't done so yet.
         with self.objc_class.cache_lock:
             if self.objc_class.methods_ptr is None:
                 self.objc_class._load_methods()
 
+        # See if there's a partial method starting with the given name.
         try:
             method = self.objc_class.partial_methods[name]
         except KeyError:
