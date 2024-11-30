@@ -1101,14 +1101,13 @@ class ObjCInstance:
 
         # See if there's a partial method starting with the given name,
         # either on self's class or any of the superclasses.
-        cls = self.objc_class
-        # Load the class's methods if we haven't done so yet.
-        with cls.cache_lock:
-            if cls.methods_ptr is None:
-                cls._load_methods()
+        # Load the class's methods first if we haven't done so yet.
+        with self.objc_class.cache_lock:
+            if self.objc_class.methods_ptr is None:
+                self.objc_class._load_methods()
 
         try:
-            method = cls.partial_methods[name]
+            method = self.objc_class.partial_methods[name]
         except KeyError:
             pass
 
@@ -1658,16 +1657,20 @@ class ObjCClass(ObjCInstance, type):
         if self.methods_ptr is not None:
             raise RuntimeError(f"{self}._load_methods cannot be called more than once")
 
-        if self.superclass is not None:
-            if self.superclass.methods_ptr is None:
-                with self.superclass.cache_lock:
-                    self.superclass._load_methods()
+        # Traverse the superclass hierarchy and load methods.
+        superclass = self.superclass
+        while superclass is not None:
+            if superclass.methods_ptr is None:
+                with superclass.cache_lock:
+                    superclass._load_methods()
 
             # Prime this class' partials list with a list from the superclass.
             for first, superpartial in self.superclass.partial_methods.items():
                 partial = ObjCPartialMethod(first)
                 self.partial_methods[first] = partial
                 partial.methods.update(superpartial.methods)
+
+            superclass = superclass.superclass
 
         # Load methods for this class.
         methods_ptr_count = c_uint(0)
